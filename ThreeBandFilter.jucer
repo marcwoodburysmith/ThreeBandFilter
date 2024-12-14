@@ -4,6 +4,15 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="EubSKn" name="ThreeBandFilter">
     <GROUP id="{81C0DB5C-8C1E-A37D-6CF2-E2CC0451D755}" name="Source">
+      <FILE id="r6MMWC" name="HighCutLowCutParameters.h" compile="0" resource="0"
+            file="Source/HighCutLowCutParameters.h"/>
+      <FILE id="gZjuW8" name="FilterParametersBase.h" compile="0" resource="0"
+            file="Source/FilterParametersBase.h"/>
+      <FILE id="K8oUuz" name="FilterParameters.h" compile="0" resource="0"
+            file="Source/FilterParameters.h"/>
+      <FILE id="jQDe7j" name="CoefficientMaker.h" compile="0" resource="0"
+            file="Source/CoefficientMaker.h"/>
+      <FILE id="mtExQP" name="FilterInfo.h" compile="0" resource="0" file="Source/FilterInfo.h"/>
       <FILE id="DmvRKf" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="A1YkpY" name="PluginProcessor.h" compile="0" resource="0"
