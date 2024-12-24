@@ -9,6 +9,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+
+
 //==============================================================================
 ThreeBandFilterAudioProcessor::ThreeBandFilterAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -23,11 +25,76 @@ ThreeBandFilterAudioProcessor::ThreeBandFilterAudioProcessor()
 #endif
 {
     
+    auto params = FilterInfo::getParameterNames();
+
+    p_gain = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Gain_Low_Band)));
+    p_freq = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Freq_Low_Band)));
+    p_quality = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Quality_Low_Band)));
+    p_slope = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Slope_Low_Band)));
+    p_bypassed = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band)));
+//    p_filterType = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band)));
+    
 }
 
 ThreeBandFilterAudioProcessor::~ThreeBandFilterAudioProcessor()
 {
 }
+
+//==============================================================================
+
+juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcessor::createParameterLayout()
+{
+    auto params = FilterInfo::getParameterNames();
+    
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    
+    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band), false));
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Freq_Low_Band), 1},
+                                                           params.at(FilterInfo::FilterParameterNames::Freq_Low_Band),
+                                                           juce::NormalisableRange<float>(40.f, 22000.f, 1.f, .6f),
+                                                           400.f));
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Gain_Low_Band), 1},
+                                                           params.at(FilterInfo::FilterParameterNames::Gain_Low_Band),
+                                                           juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f),
+                                                           0.f));
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Quality_Low_Band), 1},
+                                                           FilterInfo::filterToFilter.at(FilterParameterNames::Quality_Low_Band),
+                                                           juce::NormalisableRange<float>(1.f, 10.f, 0.5f, 1.f),
+                                                           1.f));
+    
+    //    juce::StringArray stringArray;
+    //        for( int i = 0; i < 4; ++i )
+    //        {
+    //            juce::String str;
+    //            str << (12 + i*12);
+    //            str << " db/Oct";
+    //            stringArray.add(str);
+    //        }
+    
+    juce::StringArray slopeArray;
+    for ( const auto& [id, slope] :  FilterInfo::slopeToString )
+    {
+        slopeArray.add(slope);
+    }
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), slopeArray, 0));
+    
+    auto filterTypes = FilterInfo::getFilterTypes();
+    
+    juce::StringArray filterType;
+    for ( const auto& [id, name] :  filterTypes)
+    {
+        filterType.add(name);
+    }
+    
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), filterType, 0));
+    
+    return layout;
+}
+
 
 //==============================================================================
 const juce::String ThreeBandFilterAudioProcessor::getName() const
@@ -170,18 +237,22 @@ void ThreeBandFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     auto params = FilterInfo::getParameterNames();
     
     FilterInfo::FilterType filterType = static_cast<FilterInfo::FilterType>(apvts.getRawParameterValue(params.at(FilterParameterNames::FilterType_Low_Band))->load() );
-    float gain = apvts.getRawParameterValue(params.at(FilterParameterNames::Gain_Low_Band))->load();
-    float freq = apvts.getRawParameterValue(params.at(FilterParameterNames::Freq_Low_Band))->load();
-    float quality = apvts.getRawParameterValue(params.at(FilterParameterNames::Quality_Low_Band))->load();
-    bool bypassed = apvts.getRawParameterValue(params.at(FilterParameterNames::Bypassed_Low_Band))->load() > 0.5f;
+    
+//    float freq = apvts.getRawParameterValue(params.at(FilterParameterNames::Freq_Low_Band))->load();
+//    float quality = apvts.getRawParameterValue(params.at(FilterParameterNames::Quality_Low_Band))->load();
+//    bool bypassed = apvts.getRawParameterValue(params.at(FilterParameterNames::Bypassed_Low_Band))->load() > 0.5f;
+    
+    float freq = p_freq->get();
+    float quality = p_quality->get();
+    bool bypassed = p_bypassed->get();
+    
+    auto slope = p_slope->getCurrentChoiceName().getFloatValue(); //need to check this
     
     
     
-//
+    auto gain = juce::Decibels::decibelsToGain(p_gain->get() );
+
     
-    /*
-     If it's a LowCutHighCut-type of filter, then you'll create a LowCutHighCutParameters object.
-     If it's not, then you'll create a FilterParameters object.*/
     if ( filterType == FilterType::FirstOrderLowPass || filterType == FilterType::FirstOrderHighPass || filterType == FilterType::LowPass || filterType == FilterType::HighPass )
     {
         HighCutLowCutParameters newHighCutLowCut;
@@ -195,30 +266,45 @@ void ThreeBandFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
             newHighCutLowCut.order = 2;
         }
         
-        //Now need to generate coefficients and build new Filter with these
-       
-        auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
-        *(leftChain.get<0>().coefficients) = *(newCoefficients[0]);
-        *(rightChain.get<0>().coefficients) = *(newCoefficients[1]);
+        newHighCutLowCut.sampleRate = getSampleRate();
+        newHighCutLowCut.quality = quality;
+        
+        if (newHighCutLowCut != oldHighLowParams || filterType  != oldFilterType )
+        {
+            auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+            leftChain.setBypassed<0>(bypassed);
+            rightChain.setBypassed<0>(bypassed);
+            *(leftChain.get<0>().coefficients) = *(newCoefficients[0]);
+            *(rightChain.get<0>().coefficients) = *(newCoefficients[0]);
+            oldHighLowParams = newHighCutLowCut;
+        
+            
+        }
+        oldHighLowParams = newHighCutLowCut;
         
     }
     else
     {
         FilterParameters newFilterParameters;
         
-        newFilterParameters.gainInDecibels = gain;
+        newFilterParameters.filterType = filterType;
+        newFilterParameters.gain = gain;
         newFilterParameters.freq = freq;
         newFilterParameters.quality = quality;
         newFilterParameters.bypassed = bypassed;
         
-        auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
-        *(leftChain.get<0>().coefficients) = *(newCoefficients);
-        *(rightChain.get<0>().coefficients) = *(newCoefficients);
-        
+        if ( newFilterParameters != oldParams || filterType  != oldFilterType  )
+        {
+            auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
+            leftChain.setBypassed<0>(bypassed);
+            rightChain.setBypassed<0>(bypassed);
+            *(leftChain.get<0>().coefficients) = *newCoefficients;
+            *(rightChain.get<0>().coefficients) = *newCoefficients;
+        }
+        oldParams = newFilterParameters;
     }
     
-    
-    
+   
 
     juce::dsp::AudioBlock<float> block(buffer);
     auto leftChannel = block.getSingleChannelBlock(0);
@@ -269,55 +355,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 
 
-juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcessor::createParameterLayout()
-{
-    auto params = FilterInfo::getParameterNames();
-    
-    juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    
-    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band)}, params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band), false));
-    
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Freq_Low_Band), 1},
-                                    params.at(FilterInfo::FilterParameterNames::Freq_Low_Band),
-                                    juce::NormalisableRange<float>(-12.f, 12.f, 0.1f, 1.f),
-                                    0.f));
-    
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Gain_Low_Band), 1},
-                                    params.at(FilterInfo::FilterParameterNames::Gain_Low_Band),
-                                    juce::NormalisableRange<float>(-12.f, 12.f, 0.1f, 1.f),
-                                    0.f));
-    
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Quality_Low_Band), 1},
-                                    FilterInfo::filterToFilter.at(FilterParameterNames::Quality_Low_Band),
-                                    juce::NormalisableRange<float>(-12.f, 12.f, 0.1f, 1.f),
-                                    0.f));
-    
-//    juce::StringArray stringArray;
-//        for( int i = 0; i < 4; ++i )
-//        {
-//            juce::String str;
-//            str << (12 + i*12);
-//            str << " db/Oct";
-//            stringArray.add(str);
-//        }
-    
-    juce::StringArray slopeArray;
-    for ( const auto& [id, slope] :  FilterInfo::slopeToString )
-    {
-        slopeArray.add(slope);
-    }
-    
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), slopeArray, 0));
-    
-    auto filterTypes = FilterInfo::getFilterTypes();
-    
-    juce::StringArray filterType;
-    for ( const auto& [id, name] :  filterTypes)
-    {
-        filterType.add(name);
-    }
-    
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), filterType, 0));
-    
-    return layout;
-}

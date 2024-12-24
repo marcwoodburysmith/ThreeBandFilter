@@ -9,3 +9,12 @@
 */
 
 #pragma once
+#include <JuceHeader.h>
+
+
+struct HighCutLowCutParameters : public FilterParametersBase
+{
+    int order {1};
+    bool isLowCut{true};
+};
+
