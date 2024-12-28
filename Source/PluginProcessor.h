@@ -86,15 +86,15 @@ private:
     MonoChain leftChain;
     MonoChain rightChain;
     
-    FilterParameters oldParams;
-    HighCutLowCutParameters oldHighLowParams;
+    FilterParameters oldParametricParams;
+    HighCutLowCutParameters oldCutParams;
     FilterInfo::FilterType oldFilterType;
     
-    juce::AudioParameterFloat* p_gain{nullptr};
-    juce::AudioParameterFloat* p_freq{nullptr};
-    juce::AudioParameterFloat* p_quality{nullptr};
-    juce::AudioParameterChoice* p_slope {nullptr};
-    juce::AudioParameterBool* p_bypassed {nullptr};
+//    juce::AudioParameterFloat* p_gain{nullptr};
+//    juce::AudioParameterFloat* p_freq{nullptr};
+//    juce::AudioParameterFloat* p_quality{nullptr};
+//    juce::AudioParameterChoice* p_slope {nullptr};
+//    juce::AudioParameterBool* p_bypassed {nullptr};
 //    juce::AudioParameterChoice* p_filterType {nullptr};
     
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
