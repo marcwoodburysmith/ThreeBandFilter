@@ -11,18 +11,6 @@
 #pragma once
 #include <JuceHeader.h>
 
-/*
- #include <iostream>
-
- 
- int main()
- {
-     function(3);
-     function("a");
-
-     return 0;
- }
- */
 
 template<typename T, size_t Size>
 struct Fifo
@@ -36,11 +24,14 @@ struct Fifo
     //used when T is AudioBuffer<float>
     void prepare(int numSamples, int numChannels)
     {
-        for ( auto buf& : buffer )
+        
+        static_assert (std::is_same<juce::AudioBuffer<float>, T>::value,
+                              "Fifo::prepare(2 params) requires T to be AudioBuffer<float>!");
+        for (auto& audioBuffer : buffer)
         {
-            static_assert(std::is_same<juce::AudioBuffer<float>, T>::value);
-            buf.setSize (numChannels, numSamples, false, false, true);
-            buf.clear();
+            // don't bother clearing extra space, we are going to clear right after this call.
+            audioBuffer.setSize (numChannels, numSamples, false, false, true);
+            audioBuffer.clear();
         }
     }
     
@@ -48,9 +39,12 @@ struct Fifo
     //used when T is std::vector<float>
     void prepare(size_t numElements)
     {
-        for ( auto buf& : buffer )
+        static_assert (std::is_same<std::vector<float>, T>::value,
+                              "Fifo::prepare(1 param) requires T to be vector<float>!");
+
+        for ( auto& buf : buffer )
         {
-            static_assert(std::is_same<std::vector<float>, T>::value );
+//            static_assert(std::is_same<std::vector<float>, T>::value );
             buf.clear();
             buf.resize(numElements);
         }
@@ -69,27 +63,25 @@ struct Fifo
         
         if (writeHandle.blockSize1 < 1)
                 return false;
-
         
-        if (writeHandle.blocksize1 > 0)
+        
+        if constexpr ( IsReferenceCountedObjectPtr<T>::value )
         {
-            if constexpr ( IsReferenceCountedObjectPtr<T>::value )
+            auto tempT {buffer[writeHandle.startIndex1]};
+            buffer[writeHandle.startIndex1] = t;
+            
+            // verify we are not about to delete the object that was at this index, if any!
+            if(tempT)
             {
-                auto tempT {buffer[write.startIndex1]};
-                buffer[write.startIndex1] = t;
-                
-                // verify we are not about to delete the object that was at this index, if any!
-                if(tempT)
-                {
-                    jassert (tempT.get()->getReferenceCount() > 1);
-                }
+                jassert (tempT.get()->getReferenceCount() > 1);
             }
-            else
-            {
-                buffer[write.startIndex1] = t;
-            }
-            return true;
         }
+        else
+        {
+            buffer[writeHandle.startIndex1] = t;
+        }
+        return true;
+
     }
           
     
@@ -97,9 +89,9 @@ struct Fifo
     {
         auto readHandle = fifo.read(1);
         
-        if ( readHandle.blocksize1 > 0 )
+        if ( readHandle.blockSize1 > 0 )
         {
-            t = buffer[read.startIndex1];
+            t = buffer[readHandle.startIndex1];
             return true;
         }
         return false;
@@ -116,11 +108,13 @@ struct Fifo
 private:
     juce::AbstractFifo fifo { Size };
     std::array<T, Size> buffer;
+    
+    template<typename U>
+    struct IsReferenceCountedObjectPtr : std::false_type { };
+
+    template<typename W>
+    struct IsReferenceCountedObjectPtr<juce::ReferenceCountedObjectPtr<W>> : std::true_type { };
 };
 
 
-template<typename U>
-struct IsReferenceCountedObjectPtr : std::false_type { };
 
-template<typename W>
-struct IsReferenceCountedObjectPtr<juce::ReferenceCountedObjectPtr<W>> : std::true_type { };
