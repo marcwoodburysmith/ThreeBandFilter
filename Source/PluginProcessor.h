@@ -80,6 +80,10 @@ public:
     
     juce::AudioProcessorValueTreeState apvts { *this, nullptr, "Parameters", createParameterLayout() };
     
+    void updateFilters(double sampleRate); //, bool forceUpdate);
+    
+    void addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int FilterNum);
+    
 
 private:
     
@@ -98,6 +102,10 @@ private:
 //    juce::AudioParameterChoice* p_filterType {nullptr};
     
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    
+//    void updateFilters(double sampleRate); //, bool forceUpdate);
+//    
+//    void addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int FilterNum);
    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreeBandFilterAudioProcessor)

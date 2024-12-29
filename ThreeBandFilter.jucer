@@ -4,6 +4,10 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="EubSKn" name="ThreeBandFilter">
     <GROUP id="{81C0DB5C-8C1E-A37D-6CF2-E2CC0451D755}" name="Source">
+      <FILE id="zGR0BZ" name="ParameterHelpers.cpp" compile="1" resource="0"
+            file="Source/ParameterHelpers.cpp"/>
+      <FILE id="YcARcG" name="ParameterHelpers.h" compile="0" resource="0"
+            file="Source/ParameterHelpers.h"/>
       <FILE id="TZ89e6" name="Fifo.h" compile="0" resource="0" file="Source/Fifo.h"/>
       <FILE id="r6MMWC" name="HighCutLowCutParameters.h" compile="0" resource="0"
             file="Source/HighCutLowCutParameters.h"/>

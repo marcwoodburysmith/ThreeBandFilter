@@ -8,6 +8,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "ParameterHelpers.h"
 
 
 
@@ -44,24 +45,37 @@ ThreeBandFilterAudioProcessor::~ThreeBandFilterAudioProcessor()
 
 juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcessor::createParameterLayout()
 {
-    auto params = FilterInfo::getParameterNames();
+//    auto params = FilterInfo::getParameterNames();
+    
+//    using ParamLayout = juce::AudioProcessorValueTreeState::ParameterLayout;
     
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     
-    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::Bypassed_Low_Band), false));
+    addFilterParamToLayout(layout, 0);
+    addFilterParamToLayout(layout, 1);
+    addFilterParamToLayout(layout, 2);
     
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Freq_Low_Band), 1},
-                                                           params.at(FilterInfo::FilterParameterNames::Freq_Low_Band),
+    return layout;
+}
+
+void ThreeBandFilterAudioProcessor::addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int filterNum)
+{
+    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{createBypassedParameters(filterNum), 1}, 
+                                                          createBypassedParameters(filterNum),
+                                                          false));
+    
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createFreqParameters(filterNum), 1},
+                                                           createFreqParameters(filterNum),
                                                            juce::NormalisableRange<float>(40.f, 22000.f, 1.f, .6f),
                                                            400.f));
     
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Gain_Low_Band), 1},
-                                                           params.at(FilterInfo::FilterParameterNames::Gain_Low_Band),
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createGainParameters(filterNum), 1},
+                                                           createGainParameters(filterNum),
                                                            juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f),
                                                            0.f));
     
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Quality_Low_Band), 1},
-                                                           FilterInfo::filterToFilter.at(FilterParameterNames::Quality_Low_Band),
+    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createQualityParameters(filterNum), 1},
+                                                           createQualityParameters(filterNum),
                                                            juce::NormalisableRange<float>(1.f, 10.f, 0.5f, 1.f),
                                                            1.f));
     
@@ -80,7 +94,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcesso
         slopeArray.add(slope);
     }
     
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::Slope_Low_Band), slopeArray, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createSlopeParameters(filterNum), 1}, createSlopeParameters(filterNum), slopeArray, 0));
     
     auto filterTypes = FilterInfo::getFilterTypes();
     
@@ -90,11 +104,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcesso
         filterType.add(name);
     }
     
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), 1}, params.at(FilterInfo::FilterParameterNames::FilterType_Low_Band), filterType, 0));
-    
-    return layout;
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createFilterTypeParameters(filterNum), 1}, createFilterTypeParameters(filterNum), filterType, 0));
 }
-
 
 //==============================================================================
 const juce::String ThreeBandFilterAudioProcessor::getName() const
@@ -219,22 +230,76 @@ void ThreeBandFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+
+    updateFilters(getSampleRate() );
+
+    juce::dsp::AudioBlock<float> block(buffer);
+    auto leftChannel = block.getSingleChannelBlock(0);
+    auto rightChannel = block.getSingleChannelBlock(1);
+    
+    juce::dsp::ProcessContextReplacing<float> leftContext(leftChannel);
+    juce::dsp::ProcessContextReplacing<float> rightContext(rightChannel);
+    
+    leftChain.process(leftContext);
+    rightChain.process(rightContext);
+    
+}
+
+//==============================================================================
+bool ThreeBandFilterAudioProcessor::hasEditor() const
+{
+    return true; // (change this to false if you choose to not supply an editor)
+}
+
+juce::AudioProcessorEditor* ThreeBandFilterAudioProcessor::createEditor()
+{
+//    return new ThreeBandFilterAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this);
+}
+
+//==============================================================================
+void ThreeBandFilterAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    // You should use this method to store your parameters in the memory block.
+    // You could do that either as raw data, or use the XML or ValueTree classes
+    // as intermediaries to make it easy to save and load complex data.
+}
+
+void ThreeBandFilterAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    // You should use this method to restore your parameters from this memory block,
+    // whose contents will have been created by the getStateInformation() call.
+}
+
+//==============================================================================
+// This creates new instances of the plugin..
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new ThreeBandFilterAudioProcessor();
+}
+
+//==============================================================================
+
+
+
+void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate) //, bool forceUpdate)
+{
     using namespace FilterInfo;
     
     auto params = FilterInfo::getParameterNames();
     
-    FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(params.at(FilterParameterNames::FilterType_Low_Band))->load() );
+    FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(0))->load() );
     
-    float freq = apvts.getRawParameterValue(params.at(FilterParameterNames::Freq_Low_Band))->load();
-    float quality = apvts.getRawParameterValue(params.at(FilterParameterNames::Quality_Low_Band))->load();
-    bool bypassed = apvts.getRawParameterValue(params.at(FilterParameterNames::Bypassed_Low_Band))->load() > 0.5f;
+    float freq = apvts.getRawParameterValue(createFreqParameters(0))->load();
+    float quality = apvts.getRawParameterValue(createQualityParameters(0))->load();
+    bool bypassed = apvts.getRawParameterValue(createBypassedParameters(0))->load() > 0.5f;
     
-    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(params.at(FilterInfo::FilterParameterNames::Gain_Low_Band))->load() );
+    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(0))->load() );
     
 //    float freq = p_freq->get();
 //    float quality = p_quality->get();
 //    bool bypassed = p_bypassed->get();
-//    
+//
 //    auto slope = p_slope->getCurrentChoiceName().getFloatValue(); //need to check this
     
     
@@ -293,54 +358,5 @@ void ThreeBandFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
         oldParametricParams = newFilterParameters;
     }
     
-   
-
-    juce::dsp::AudioBlock<float> block(buffer);
-    auto leftChannel = block.getSingleChannelBlock(0);
-    auto rightChannel = block.getSingleChannelBlock(1);
-    
-    juce::dsp::ProcessContextReplacing<float> leftContext(leftChannel);
-    juce::dsp::ProcessContextReplacing<float> rightContext(rightChannel);
-    
-    leftChain.process(leftContext);
-    rightChain.process(rightContext);
     
 }
-
-//==============================================================================
-bool ThreeBandFilterAudioProcessor::hasEditor() const
-{
-    return true; // (change this to false if you choose to not supply an editor)
-}
-
-juce::AudioProcessorEditor* ThreeBandFilterAudioProcessor::createEditor()
-{
-//    return new ThreeBandFilterAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
-}
-
-//==============================================================================
-void ThreeBandFilterAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
-{
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
-}
-
-void ThreeBandFilterAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
-{
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
-}
-
-//==============================================================================
-// This creates new instances of the plugin..
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
-    return new ThreeBandFilterAudioProcessor();
-}
-
-//==============================================================================
-
-
-
