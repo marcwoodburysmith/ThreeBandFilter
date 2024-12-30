@@ -82,7 +82,7 @@ public:
     
     void updateFilters(double sampleRate); //, bool forceUpdate);
     
-    void addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int FilterNum);
+    void addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int FilterNum, bool isCut);
     
 
 private:
@@ -93,6 +93,12 @@ private:
     FilterParameters oldParametricParams;
     HighCutLowCutParameters oldCutParams;
     FilterInfo::FilterType oldFilterType;
+    
+    template <const int filterNum>
+    void updateParametricFilter(double sampleRate);
+   
+    template <const int filterNum>
+    void updateCutFilter(double sampleRate, bool isLowCut);
     
 //    juce::AudioParameterFloat* p_gain{nullptr};
 //    juce::AudioParameterFloat* p_freq{nullptr};

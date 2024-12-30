@@ -26,7 +26,7 @@ ThreeBandFilterAudioProcessor::ThreeBandFilterAudioProcessor()
 #endif
 {
     
-    auto params = FilterInfo::getParameterNames();
+//    auto params = FilterInfo::getParameterNames();
 
 //    p_gain = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Gain_Low_Band)));
 //    p_freq = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(params.at(FilterInfo::FilterParameterNames::Freq_Low_Band)));
@@ -51,14 +51,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandFilterAudioProcesso
     
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     
-    addFilterParamToLayout(layout, 0);
-    addFilterParamToLayout(layout, 1);
-    addFilterParamToLayout(layout, 2);
+    addFilterParamToLayout(layout, 0, true);
+    addFilterParamToLayout(layout, 1, false);
+    addFilterParamToLayout(layout, 2, true);
     
     return layout;
 }
 
-void ThreeBandFilterAudioProcessor::addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int filterNum)
+void ThreeBandFilterAudioProcessor::addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int filterNum, bool isCut)
 {
     layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{createBypassedParameters(filterNum), 1}, 
                                                           createBypassedParameters(filterNum),
@@ -69,15 +69,42 @@ void ThreeBandFilterAudioProcessor::addFilterParamToLayout(juce::AudioProcessorV
                                                            juce::NormalisableRange<float>(40.f, 22000.f, 1.f, .6f),
                                                            400.f));
     
-    layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createGainParameters(filterNum), 1},
-                                                           createGainParameters(filterNum),
-                                                           juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f),
-                                                           0.f));
+   
     
     layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createQualityParameters(filterNum), 1},
                                                            createQualityParameters(filterNum),
                                                            juce::NormalisableRange<float>(1.f, 10.f, 0.5f, 1.f),
                                                            1.f));
+    if (!isCut)
+    {
+        layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{createGainParameters(filterNum), 1},
+                                                               createGainParameters(filterNum),
+                                                               juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f),
+                                                               0.f));
+        
+        auto filterTypes = FilterInfo::getFilterTypes();
+        
+        juce::StringArray filterType;
+        for ( const auto& [id, name] :  filterTypes)
+        {
+            filterType.add(name);
+        }
+        
+        layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createFilterTypeParameters(filterNum), 1}, createFilterTypeParameters(filterNum), filterType, 0));
+        
+    }
+    else
+    {
+        juce::StringArray slopeArray;
+        for ( const auto& [id, slope] :  FilterInfo::slopeToString )
+        {
+            slopeArray.add(slope);
+        }
+        
+        layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createSlopeParameters(filterNum), 1}, createSlopeParameters(filterNum), slopeArray, 0));
+        
+    }
+    
     
     //    juce::StringArray stringArray;
     //        for( int i = 0; i < 4; ++i )
@@ -88,23 +115,9 @@ void ThreeBandFilterAudioProcessor::addFilterParamToLayout(juce::AudioProcessorV
     //            stringArray.add(str);
     //        }
     
-    juce::StringArray slopeArray;
-    for ( const auto& [id, slope] :  FilterInfo::slopeToString )
-    {
-        slopeArray.add(slope);
-    }
+   
     
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createSlopeParameters(filterNum), 1}, createSlopeParameters(filterNum), slopeArray, 0));
-    
-    auto filterTypes = FilterInfo::getFilterTypes();
-    
-    juce::StringArray filterType;
-    for ( const auto& [id, name] :  filterTypes)
-    {
-        filterType.add(name);
-    }
-    
-    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{createFilterTypeParameters(filterNum), 1}, createFilterTypeParameters(filterNum), filterType, 0));
+   
 }
 
 //==============================================================================
@@ -282,19 +295,28 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 
 
-void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate) //, bool forceUpdate)
+template <const int filterNum>
+void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
 {
     using namespace FilterInfo;
     
-    auto params = FilterInfo::getParameterNames();
+//    auto params = FilterInfo::getParameterNames();
     
-    FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(0))->load() );
+//    int filterNum = 0;
     
-    float freq = apvts.getRawParameterValue(createFreqParameters(0))->load();
-    float quality = apvts.getRawParameterValue(createQualityParameters(0))->load();
-    bool bypassed = apvts.getRawParameterValue(createBypassedParameters(0))->load() > 0.5f;
+    FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(filterNum))->load() );
     
-    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(0))->load() );
+//    FilterType filterType = FilterType::LowPass;
+    
+    float freq = apvts.getRawParameterValue(createFreqParameters(filterNum))->load();
+    float quality = apvts.getRawParameterValue(createQualityParameters(filterNum))->load();
+    bool bypassed = apvts.getRawParameterValue(createBypassedParameters(filterNum))->load() > 0.5f;
+    
+//    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(filterNum))->load() );
+    
+//    float gain = apvts.getRawParameterValue(createGainParameters(filterNum))->load();
+//    auto gain = juce::Decibels::decibelsToGain(gainDb);
+//    float gain = 0.5f;
     
 //    float freq = p_freq->get();
 //    float quality = p_quality->get();
@@ -320,7 +342,7 @@ void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate) //, bool fo
             newHighCutLowCut.order = 2;
         }
         
-        newHighCutLowCut.sampleRate = getSampleRate();
+        newHighCutLowCut.sampleRate = sampleRate;
         newHighCutLowCut.quality = quality;
         
         if (newHighCutLowCut != oldCutParams || filterType  != oldFilterType )
@@ -341,6 +363,10 @@ void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate) //, bool fo
     {
         FilterParameters newFilterParameters;
         
+        FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(filterNum))->load() );
+        
+        float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(filterNum))->load() );
+        
         newFilterParameters.filterType = filterType;
         newFilterParameters.gain = gain;
         newFilterParameters.freq = freq;
@@ -358,5 +384,13 @@ void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate) //, bool fo
         oldParametricParams = newFilterParameters;
     }
     
+ 
+}
+
+void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate)
+{
+//    updateCutFilter<0>(sampleRate,true);
+    updateParametricFilter<1>(sampleRate);
+//    updateCutFilter<2>(sampleRate,false);
     
 }
