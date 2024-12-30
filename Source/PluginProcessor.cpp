@@ -294,7 +294,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 //==============================================================================
 
 template <const int filterNum>
-void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut)
+void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLowCut)
 {
     using namespace FilterInfo;
     
@@ -311,20 +311,36 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLo
     newHighCutLowCut.bypassed = bypassed;
     newHighCutLowCut.quality = 1.f;
     
-    if (newHighCutLowCut != oldParams)
+    if (true)//(newHighCutLowCut != oldParams)
     {
         auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
         
+        //FIFO HERE
+        
         leftChain.setBypassed<filterNum>(bypassed);
         rightChain.setBypassed<filterNum>(bypassed);
+//        bypassSubChain<filterNum>();
         if ( !bypassed )
         {
-            *(leftChain.get<filterNum>().coefficients) = *cutCoefficients[0];
-            *(rightChain.get<filterNum>().coefficients) = *cutCoefficients[0];
+//
+            switch (slope)
+            {
+                case Slope::slope48:
+                case Slope::slope42:
+//                    updateSingleCut<filterNum, 3>(cutCoefficients);
+                case Slope::slope36:
+                case Slope::slope30:
+//                    updateSingleCut<filterNum, 2>(cutCoefficients);
+                case Slope::slope24:
+                case Slope::slope18:
+//                    updateSingleCut<filterNum, 1>(cutCoefficients);
+                case Slope::slope12:
+                case Slope::slope6:
+//                    updateSingleCut<filterNum, 0>(cutCoefficients);                
+            }
         }
-        
     }
-    oldParams = newHighCutLowCut;
+//    oldParams = newHighCutLowCut;
 }
 
 template <const int filterNum>
@@ -369,6 +385,9 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         if (newHighCutLowCut != oldCutParams || filterType  != oldFilterType )
         {
             auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+            
+            //FIFO HERE
+            
             leftChain.setBypassed<0>(bypassed);
             rightChain.setBypassed<0>(bypassed);
             *(leftChain.get<0>().coefficients) = *(newCoefficients[0]);
@@ -397,6 +416,9 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         if ( newFilterParameters != oldParametricParams || filterType  != oldFilterType  )
         {
             auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
+            
+            //FIFO HERE
+            
             leftChain.setBypassed<0>(bypassed);
             rightChain.setBypassed<0>(bypassed);
             *(leftChain.get<0>().coefficients) = *newCoefficients;
@@ -410,8 +432,9 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
 
 void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate)
 {
-    updateCutFilter<0>(sampleRate, oldCutParams, true);
+//    updateCutFilter<0>(sampleRate, oldCutParams, true);
+    updateCutFilter<0>(sampleRate, true);
     updateParametricFilter<1>(sampleRate);
-    updateCutFilter<2>(sampleRate, oldCutParams, false);
+    updateCutFilter<2>(sampleRate, false);
     
 }

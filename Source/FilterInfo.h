@@ -182,9 +182,13 @@ inline const std::map<FilterInfo::FilterType, juce::String> getFilterTypes()
 
 enum class Slope
 {
+    slope6,
     slope12,
+    slope18,
     slope24,
+    slope30,
     slope36,
+    slope42,
     slope48
 };
 
