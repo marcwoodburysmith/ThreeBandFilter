@@ -293,7 +293,39 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 //==============================================================================
 
-
+template <const int filterNum>
+void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut)
+{
+    using namespace FilterInfo;
+    
+    float freq = apvts.getRawParameterValue(createFreqParameters(filterNum))->load();
+//    float quality = apvts.getRawParameterValue(createQualityParameters(filterNum))->load();
+    bool bypassed = apvts.getRawParameterValue(createBypassedParameters(filterNum))->load() > 0.5f;
+    
+    Slope slope = static_cast<Slope> (apvts.getRawParameterValue(createSlopeParameters(filterNum))->load());
+    
+    HighCutLowCutParameters newHighCutLowCut;
+    newHighCutLowCut.isLowCut = isLowCut;
+    newHighCutLowCut.order = static_cast<int>(slope) + 1;
+    newHighCutLowCut.freq = freq;
+    newHighCutLowCut.bypassed = bypassed;
+    newHighCutLowCut.quality = 1.f;
+    
+    if (newHighCutLowCut != oldParams)
+    {
+        auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+        
+        leftChain.setBypassed<filterNum>(bypassed);
+        rightChain.setBypassed<filterNum>(bypassed);
+        if ( !bypassed )
+        {
+            *(leftChain.get<filterNum>().coefficients) = *cutCoefficients[0];
+            *(rightChain.get<filterNum>().coefficients) = *cutCoefficients[0];
+        }
+        
+    }
+    oldParams = newHighCutLowCut;
+}
 
 template <const int filterNum>
 void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
@@ -302,32 +334,21 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
     
 //    auto params = FilterInfo::getParameterNames();
     
-//    int filterNum = 0;
-    
     FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(filterNum))->load() );
-    
-//    FilterType filterType = FilterType::LowPass;
     
     float freq = apvts.getRawParameterValue(createFreqParameters(filterNum))->load();
     float quality = apvts.getRawParameterValue(createQualityParameters(filterNum))->load();
     bool bypassed = apvts.getRawParameterValue(createBypassedParameters(filterNum))->load() > 0.5f;
     
-//    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(filterNum))->load() );
-    
-//    float gain = apvts.getRawParameterValue(createGainParameters(filterNum))->load();
-//    auto gain = juce::Decibels::decibelsToGain(gainDb);
-//    float gain = 0.5f;
+    float gainDb = apvts.getRawParameterValue(createGainParameters(filterNum))->load();
+    auto gain = juce::Decibels::decibelsToGain(gainDb);
+
     
 //    float freq = p_freq->get();
 //    float quality = p_quality->get();
 //    bool bypassed = p_bypassed->get();
 //
 //    auto slope = p_slope->getCurrentChoiceName().getFloatValue(); //need to check this
-    
-    
-    
-//    auto gain = juce::Decibels::decibelsToGain(p_gain->get() );
-
     
     if ( filterType == FilterType::FirstOrderLowPass || filterType == FilterType::FirstOrderHighPass || filterType == FilterType::LowPass || filterType == FilterType::HighPass )
     {
@@ -389,8 +410,8 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
 
 void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate)
 {
-//    updateCutFilter<0>(sampleRate,true);
+    updateCutFilter<0>(sampleRate, oldCutParams, true);
     updateParametricFilter<1>(sampleRate);
-//    updateCutFilter<2>(sampleRate,false);
+    updateCutFilter<2>(sampleRate, oldCutParams, false);
     
 }

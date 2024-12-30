@@ -98,7 +98,7 @@ private:
     void updateParametricFilter(double sampleRate);
    
     template <const int filterNum>
-    void updateCutFilter(double sampleRate, bool isLowCut);
+    void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut);
     
 //    juce::AudioParameterFloat* p_gain{nullptr};
 //    juce::AudioParameterFloat* p_freq{nullptr};
