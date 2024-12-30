@@ -327,16 +327,16 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLo
             {
                 case Slope::slope48:
                 case Slope::slope42:
-//                    updateSingleCut<filterNum, 3>(cutCoefficients);
+                    updateSingleCut<filterNum, 3>(cutCoefficients);
                 case Slope::slope36:
                 case Slope::slope30:
-//                    updateSingleCut<filterNum, 2>(cutCoefficients);
+                    updateSingleCut<filterNum, 2>(cutCoefficients);
                 case Slope::slope24:
                 case Slope::slope18:
-//                    updateSingleCut<filterNum, 1>(cutCoefficients);
+                    updateSingleCut<filterNum, 1>(cutCoefficients);
                 case Slope::slope12:
                 case Slope::slope6:
-//                    updateSingleCut<filterNum, 0>(cutCoefficients);                
+                    updateSingleCut<filterNum, 0>(cutCoefficients);                
             }
         }
     }
@@ -390,8 +390,8 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
             
             leftChain.setBypassed<0>(bypassed);
             rightChain.setBypassed<0>(bypassed);
-            *(leftChain.get<0>().coefficients) = *(newCoefficients[0]);
-            *(rightChain.get<0>().coefficients) = *(newCoefficients[0]);
+            *(leftChain.get<filterNum>().coefficients) = *(newCoefficients[0]);
+            *(rightChain.get<filterNum>().coefficients) = *(newCoefficients[0]);
 //            oldCutParams = newHighCutLowCut;
         
             
@@ -419,10 +419,10 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
             
             //FIFO HERE
             
-            leftChain.setBypassed<0>(bypassed);
-            rightChain.setBypassed<0>(bypassed);
-            *(leftChain.get<0>().coefficients) = *newCoefficients;
-            *(rightChain.get<0>().coefficients) = *newCoefficients;
+            leftChain.setBypassed<filterNum>(bypassed);
+            rightChain.setBypassed<filterNum>(bypassed);
+            *(leftChain.get<filterNum>().coefficients) = *newCoefficients;
+            *(rightChain.get<filterNum>().coefficients) = *newCoefficients;
         }
         oldParametricParams = newFilterParameters;
     }

@@ -31,7 +31,9 @@
 
 using Filter = juce::dsp::IIR::Filter<float>;
 
-using MonoChain = juce::dsp::ProcessorChain<Filter>;
+using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+
+using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
 
 
 
@@ -100,6 +102,35 @@ private:
     template <const int filterNum>
     void updateCutFilter(double sampleRate, bool isLowCut);
     
+    template <const int filterNum, const int subFilterNum, typename CoefficientType>
+    void updateSingleCut(CoefficientType& chainCoefficients)
+    {
+        auto& leftSubChain = leftChain.template get<filterNum>();
+        auto& rightSubChain = rightChain.template get<filterNum>();
+        
+        *(leftSubChain.template get<subFilterNum>().coefficients) = *(chainCoefficients[subFilterNum]);
+        *(rightSubChain.template get<subFilterNum>().coefficients) = *(chainCoefficients[subFilterNum]);
+       
+        leftSubChain.template setBypassed<subFilterNum>(false);
+        rightSubChain.template setBypassed<subFilterNum>(false);
+
+        
+    }
+    
+    template <const int filterNum>
+    void bypassSubChain()
+    {
+        auto& leftSubChain = leftChain.template get<filterNum>();
+        auto& rightSubChain = rightChain.template get<filterNum>();
+        leftSubChain.template setBypassed<0>(true);
+        leftSubChain.template setBypassed<1>(true);
+        leftSubChain.template setBypassed<2>(true);
+        leftSubChain.template setBypassed<3>(true);
+        rightSubChain.template setBypassed<0>(true);
+        rightSubChain.template setBypassed<1>(true);
+        rightSubChain.template setBypassed<2>(true);
+        rightSubChain.template setBypassed<3>(true);
+    }
 //    juce::AudioParameterFloat* p_gain{nullptr};
 //    juce::AudioParameterFloat* p_freq{nullptr};
 //    juce::AudioParameterFloat* p_quality{nullptr};
@@ -112,6 +143,8 @@ private:
 //    void updateFilters(double sampleRate); //, bool forceUpdate);
 //    
 //    void addFilterParamToLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout, int FilterNum);
+    
+    
    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreeBandFilterAudioProcessor)
