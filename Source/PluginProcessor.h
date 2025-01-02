@@ -14,6 +14,7 @@
 #include "FilterParameters.h"
 #include "HighCutLowCutParameters.h"
 #include "CoefficientMaker.h"
+#include "Fifo.h"
 
 
 
@@ -95,6 +96,18 @@ private:
     FilterParameters oldParametricParams;
     HighCutLowCutParameters oldCutParams;
     FilterInfo::FilterType oldFilterType;
+    
+    HighCutLowCutParameters oldHighCut;
+    HighCutLowCutParameters oldLowCut;
+    
+    using ParametricCoeffPtr = decltype(CoefficientMaker::makeCoefficients(oldParametricParams));
+    using CutCoeffArray = decltype(CoefficientMaker::makeCoefficients(oldCutParams));
+    
+    Fifo<ParametricCoeffPtr, 10> paramFifo;
+    Fifo<CutCoeffArray, 10> cutFifo;
+    Fifo<CutCoeffArray, 10> lowCutFifo;
+    Fifo<CutCoeffArray, 10> highCutFifo;
+    
     
     template <const int filterNum>
     void updateParametricFilter(double sampleRate);

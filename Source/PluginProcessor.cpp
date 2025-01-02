@@ -314,9 +314,24 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLo
     if (true)//(newHighCutLowCut != oldParams)
     {
         auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+        decltype(cutCoefficients) newCutCoefficients;
         
-        //FIFO HERE
+        /*
+         Push cutCoefficients into Fifo
+         Pull cutCoefficients from Fifo
+         */
+        if (isLowCut)
+        {
+            lowCutFifo.push(cutCoefficients);
+            lowCutFifo.pull(newCutCoefficients);
+        }
+        else
+        {
+            highCutFifo.push(cutCoefficients);
+            highCutFifo.pull(newCutCoefficients);
+        }
         
+
         leftChain.setBypassed<filterNum>(bypassed);
         rightChain.setBypassed<filterNum>(bypassed);
 //        bypassSubChain<filterNum>();
@@ -327,16 +342,16 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLo
             {
                 case Slope::slope48:
                 case Slope::slope42:
-                    updateSingleCut<filterNum, 3>(cutCoefficients);
+                    updateSingleCut<filterNum, 3>(newCutCoefficients);
                 case Slope::slope36:
                 case Slope::slope30:
-                    updateSingleCut<filterNum, 2>(cutCoefficients);
+                    updateSingleCut<filterNum, 2>(newCutCoefficients);
                 case Slope::slope24:
                 case Slope::slope18:
-                    updateSingleCut<filterNum, 1>(cutCoefficients);
+                    updateSingleCut<filterNum, 1>(newCutCoefficients);
                 case Slope::slope12:
                 case Slope::slope6:
-                    updateSingleCut<filterNum, 0>(cutCoefficients);                
+                    updateSingleCut<filterNum, 0>(newCutCoefficients);
             }
         }
     }
