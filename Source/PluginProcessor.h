@@ -113,7 +113,7 @@ private:
     void updateParametricFilter(double sampleRate);
    
     template <const int filterNum>
-    void updateCutFilter(double sampleRate, bool isLowCut);
+    void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut);
     
     template <const int filterNum, const int subFilterNum, typename CoefficientType>
     void updateSingleCut(CoefficientType& chainCoefficients)

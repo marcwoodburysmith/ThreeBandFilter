@@ -294,7 +294,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 //==============================================================================
 
 template <const int filterNum>
-void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLowCut)
+void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut)
 {
     using namespace FilterInfo;
     
@@ -355,7 +355,7 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, bool isLo
             }
         }
     }
-//    oldParams = newHighCutLowCut;
+    oldParams = newHighCutLowCut;
 }
 
 template <const int filterNum>
@@ -448,8 +448,8 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
 void ThreeBandFilterAudioProcessor::updateFilters(double sampleRate)
 {
 //    updateCutFilter<0>(sampleRate, oldCutParams, true);
-    updateCutFilter<0>(sampleRate, true);
+    updateCutFilter<0>(sampleRate, oldCutParams, true);
     updateParametricFilter<1>(sampleRate);
-    updateCutFilter<2>(sampleRate, false);
+    updateCutFilter<2>(sampleRate, oldCutParams, false);
     
 }
