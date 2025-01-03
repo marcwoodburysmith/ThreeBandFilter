@@ -15,6 +15,7 @@
 #include "HighCutLowCutParameters.h"
 #include "CoefficientMaker.h"
 #include "Fifo.h"
+#include "FilterCoefficientGenerator.h"
 
 
 
@@ -103,10 +104,19 @@ private:
     using ParametricCoeffPtr = decltype(CoefficientMaker::makeCoefficients(oldParametricParams));
     using CutCoeffArray = decltype(CoefficientMaker::makeCoefficients(oldCutParams));
     
-    Fifo<ParametricCoeffPtr, 10> paramFifo;
-    Fifo<CutCoeffArray, 10> cutFifo;
-    Fifo<CutCoeffArray, 10> lowCutFifo;
-    Fifo<CutCoeffArray, 10> highCutFifo;
+    Fifo<ParametricCoeffPtr, 100> paramFifo;
+    Fifo<CutCoeffArray, 100> cutFifo;
+    Fifo<CutCoeffArray, 100> lowCutFifo;
+    Fifo<CutCoeffArray, 100> highCutFifo;
+    
+    /*
+     Instance x4 of FilterCoefficientGenerstor which is initialised with a reference to the above Fifo
+     template <typename CoefficientType, typename ParamType, typename MakeFunction, int Size>
+     */
+    
+    FilterCoefficientGenerator <ParametricCoeffPtr, FilterParameters, CoefficientMaker, 100> parametricCoeffGenerator { paramFifo };
+    
+    
     
     
     template <const int filterNum>
