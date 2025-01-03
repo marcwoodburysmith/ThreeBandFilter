@@ -313,45 +313,58 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLo
     
     if (oldParams != newHighCutLowCut)//(newHighCutLowCut != oldParams)
     {
-        auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
-        decltype(cutCoefficients) newCutCoefficients;
+        //        auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+        //        decltype(cutCoefficients) newCutCoefficients;
         
-        /*
-         Push cutCoefficients into Fifo
-         Pull cutCoefficients from Fifo
-         */
-        if (isLowCut)
+        if ( isLowCut )
         {
-            lowCutFifo.push(cutCoefficients);
-            lowCutFifo.pull(newCutCoefficients);
+            lowCutCoeffGenerator.changeParameters(newHighCutLowCut);
         }
         else
         {
-            highCutFifo.push(cutCoefficients);
-            highCutFifo.pull(newCutCoefficients);
+            highCutCoeffGenerator.changeParameters(newHighCutLowCut);
         }
+    }
         
-
+    CutCoeffArray newChainCoefficients;
+    bool newChainAvailable;
+        
+    if (isLowCut)
+    {
+//            lowCutFifo.push(cutCoefficients);
+//            lowCutFifo.pull(newCutCoefficients);
+        newChainAvailable = lowCutFifo.pull(newChainCoefficients);
+    }
+    else
+    {
+//            highCutFifo.push(cutCoefficients);
+//            highCutFifo.pull(newCutCoefficients);
+        newChainAvailable = highCutFifo.pull(newChainCoefficients);
+    }
+        
+        
+    if ( newChainAvailable )
+    {
         leftChain.setBypassed<filterNum>(bypassed);
         rightChain.setBypassed<filterNum>(bypassed);
 //        bypassSubChain<filterNum>();
         if ( !bypassed )
         {
-//
+            //
             switch (slope)
             {
                 case Slope::slope48:
                 case Slope::slope42:
-                    updateSingleCut<filterNum, 3>(newCutCoefficients);
+                    updateSingleCut<filterNum, 3>(newChainCoefficients);
                 case Slope::slope36:
                 case Slope::slope30:
-                    updateSingleCut<filterNum, 2>(newCutCoefficients);
+                    updateSingleCut<filterNum, 2>(newChainCoefficients);
                 case Slope::slope24:
                 case Slope::slope18:
-                    updateSingleCut<filterNum, 1>(newCutCoefficients);
+                    updateSingleCut<filterNum, 1>(newChainCoefficients);
                 case Slope::slope12:
                 case Slope::slope6:
-                    updateSingleCut<filterNum, 0>(newCutCoefficients);
+                    updateSingleCut<filterNum, 0>(newChainCoefficients);
             }
         }
     }

@@ -41,6 +41,7 @@ struct FilterCoefficientGenerator : juce::Thread
     {
         while ( !threadShouldExit() )
         {
+            wait(10);
             if ( parametersChanged.compareAndSetBool(false, true) )
             {
                 //make new coefficients
