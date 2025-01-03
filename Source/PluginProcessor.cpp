@@ -347,7 +347,7 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLo
     {
         leftChain.setBypassed<filterNum>(bypassed);
         rightChain.setBypassed<filterNum>(bypassed);
-//        bypassSubChain<filterNum>();
+        bypassSubChain<filterNum>();
         if ( !bypassed )
         {
             //
