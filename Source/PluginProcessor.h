@@ -116,7 +116,11 @@ private:
     
     FilterCoefficientGenerator <ParametricCoeffPtr, FilterParameters, CoefficientMaker, 100> parametricCoeffGenerator { paramFifo };
     
+    FilterCoefficientGenerator<CutCoeffArray, HighCutLowCutParameters, CoefficientMaker, 100> highCutCoeffGenerator { highCutFifo };
     
+    FilterCoefficientGenerator<CutCoeffArray, HighCutLowCutParameters, CoefficientMaker, 100> lowCutCoeffGenerator { lowCutFifo };
+    
+    FilterCoefficientGenerator<CutCoeffArray, HighCutLowCutParameters, CoefficientMaker, 100> cutCoeffGenerator { cutFifo }; 
     
     
     template <const int filterNum>
