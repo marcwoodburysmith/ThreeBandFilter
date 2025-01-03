@@ -311,7 +311,7 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLo
     newHighCutLowCut.bypassed = bypassed;
     newHighCutLowCut.quality = 1.f;
     
-    if (true)//(newHighCutLowCut != oldParams)
+    if (oldParams != newHighCutLowCut)//(newHighCutLowCut != oldParams)
     {
         auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
         decltype(cutCoefficients) newCutCoefficients;
@@ -400,13 +400,15 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         if (newHighCutLowCut != oldCutParams || filterType  != oldFilterType )
         {
             auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+            decltype(newCoefficients) newCutCoefficients;
             
-            //FIFO HERE
+            cutFifo.push(newCoefficients);
+            cutFifo.pull(newCutCoefficients);
             
             leftChain.setBypassed<0>(bypassed);
             rightChain.setBypassed<0>(bypassed);
-            *(leftChain.get<filterNum>().coefficients) = *(newCoefficients[0]);
-            *(rightChain.get<filterNum>().coefficients) = *(newCoefficients[0]);
+            *(leftChain.get<filterNum>().coefficients) = *(newCutCoefficients[0]);
+            *(rightChain.get<filterNum>().coefficients) = *(newCutCoefficients[0]);
 //            oldCutParams = newHighCutLowCut;
         
             
@@ -432,12 +434,14 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         {
             auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
             
-            //FIFO HERE
+            paramFifo.push(newCoefficients);
+            decltype(newCoefficients) newParamCoefficients;
+            paramFifo.pull(newParamCoefficients);
             
             leftChain.setBypassed<filterNum>(bypassed);
             rightChain.setBypassed<filterNum>(bypassed);
-            *(leftChain.get<filterNum>().coefficients) = *newCoefficients;
-            *(rightChain.get<filterNum>().coefficients) = *newCoefficients;
+            *(leftChain.get<filterNum>().coefficients) = *newParamCoefficients;
+            *(rightChain.get<filterNum>().coefficients) = *newParamCoefficients;
         }
         oldParametricParams = newFilterParameters;
     }
