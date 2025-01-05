@@ -60,3 +60,9 @@ struct CoefficientMaker{
     }
     
 };
+
+
+
+// convenience types
+using FilterCoeffPtr = decltype(CoefficientMaker::makeCoefficients (FilterParameters()));
+using CutCoeffArray = decltype(CoefficientMaker::makeCoefficients (HighCutLowCutParameters()));

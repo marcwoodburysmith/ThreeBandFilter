@@ -16,6 +16,7 @@
 #include "CoefficientMaker.h"
 #include "Fifo.h"
 #include "FilterCoefficientGenerator.h"
+#include "ReleasePool.h"
 
 
 
@@ -101,6 +102,11 @@ private:
     HighCutLowCutParameters oldHighCut;
     HighCutLowCutParameters oldLowCut;
     
+    static const int fifoSize = 100;
+     // in testing i could fill the pool with enough fiddling with pool size =100, not so with 1000
+    static const int poolSize = 1000;
+    static const int cleanupInterval = 2000; // ms
+    
     using ParametricCoeffPtr = decltype(CoefficientMaker::makeCoefficients(oldParametricParams));
     using CutCoeffArray = decltype(CoefficientMaker::makeCoefficients(oldCutParams));
     
@@ -122,6 +128,14 @@ private:
     
     FilterCoefficientGenerator<CutCoeffArray, HighCutLowCutParameters, CoefficientMaker, 100> cutCoeffGenerator { cutFifo }; 
     
+    // Release pools
+    //
+    using Coefficients = juce::dsp::IIR::Coefficients<float>;
+    ReleasePool<Coefficients, 1000> lowCutCoeffPool {1000, 2000};
+    ReleasePool<Coefficients, 100> parametricCoeffPool {100, 2000};
+    ReleasePool<Coefficients, 1000> highCutCoeffPool {1000, 2000};
+
+    
     
     template <const int filterNum>
     void updateParametricFilter(double sampleRate);
@@ -130,13 +144,24 @@ private:
     void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut);
     
     template <const int filterNum, const int subFilterNum, typename CoefficientType>
-    void updateSingleCut(CoefficientType& chainCoefficients)
+    void updateSingleCut(CoefficientType& chainCoefficients, bool isLowCut)
     {
         auto& leftSubChain = leftChain.template get<filterNum>();
         auto& rightSubChain = rightChain.template get<filterNum>();
         
         *(leftSubChain.template get<subFilterNum>().coefficients) = *(chainCoefficients[subFilterNum]);
         *(rightSubChain.template get<subFilterNum>().coefficients) = *(chainCoefficients[subFilterNum]);
+        
+        // add to correct release pool
+       if(isLowCut)
+       {
+           lowCutCoeffPool.add(chainCoefficients[subFilterNum]);
+       }
+       else
+       {
+           highCutCoeffPool.add(chainCoefficients[subFilterNum]);
+       }
+
        
         leftSubChain.template setBypassed<subFilterNum>(false);
         rightSubChain.template setBypassed<subFilterNum>(false);

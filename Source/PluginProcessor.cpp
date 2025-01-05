@@ -355,16 +355,16 @@ void ThreeBandFilterAudioProcessor::updateCutFilter(double sampleRate, HighCutLo
             {
                 case Slope::slope48:
                 case Slope::slope42:
-                    updateSingleCut<filterNum, 3>(newChainCoefficients);
+                    updateSingleCut<filterNum, 3>(newChainCoefficients, isLowCut);
                 case Slope::slope36:
                 case Slope::slope30:
-                    updateSingleCut<filterNum, 2>(newChainCoefficients);
+                    updateSingleCut<filterNum, 2>(newChainCoefficients, isLowCut);
                 case Slope::slope24:
                 case Slope::slope18:
-                    updateSingleCut<filterNum, 1>(newChainCoefficients);
+                    updateSingleCut<filterNum, 1>(newChainCoefficients, isLowCut);
                 case Slope::slope12:
                 case Slope::slope6:
-                    updateSingleCut<filterNum, 0>(newChainCoefficients);
+                    updateSingleCut<filterNum, 0>(newChainCoefficients, isLowCut);
             }
         }
     }
@@ -412,19 +412,24 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         
         if (newHighCutLowCut != oldCutParams || filterType  != oldFilterType )
         {
-            auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
-            decltype(newCoefficients) newCutCoefficients;
+            //            auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+            //            decltype(newCoefficients) newCutCoefficients;
             
-            cutFifo.push(newCoefficients);
-            cutFifo.pull(newCutCoefficients);
+            cutCoeffGenerator.changeParameters(newHighCutLowCut);
             
+            //            cutFifo.push(newCoefficients);
+            //            cutFifo.pull(newCutCoefficients);
+        }
+        CutCoeffArray newChainCoefficients;
+        bool newChainAvailable = cutFifo.pull(newChainCoefficients);
+        
+        if ( newChainAvailable )
+        {
             leftChain.setBypassed<0>(bypassed);
             rightChain.setBypassed<0>(bypassed);
-            *(leftChain.get<filterNum>().coefficients) = *(newCutCoefficients[0]);
-            *(rightChain.get<filterNum>().coefficients) = *(newCutCoefficients[0]);
+            *(leftChain.get<filterNum>().coefficients) = *(newChainCoefficients[0]);
+            *(rightChain.get<filterNum>().coefficients) = *(newChainCoefficients[0]);
 //            oldCutParams = newHighCutLowCut;
-        
-            
         }
         oldCutParams = newHighCutLowCut;
         
@@ -445,18 +450,40 @@ void ThreeBandFilterAudioProcessor::updateParametricFilter(double sampleRate)
         
         if ( newFilterParameters != oldParametricParams || filterType  != oldFilterType  )
         {
-            auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
+//            auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
+//            
+//            paramFifo.push(newCoefficients);
+//            decltype(newCoefficients) newParamCoefficients;
+//            paramFifo.pull(newParamCoefficients);
+//            
+//            leftChain.setBypassed<filterNum>(bypassed);
+//            rightChain.setBypassed<filterNum>(bypassed);
+//            *(leftChain.get<filterNum>().coefficients) = *newParamCoefficients;
+//            *(rightChain.get<filterNum>().coefficients) = *newParamCoefficients;
             
-            paramFifo.push(newCoefficients);
-            decltype(newCoefficients) newParamCoefficients;
-            paramFifo.pull(newParamCoefficients);
-            
+            parametricCoeffGenerator.changeParameters(newFilterParameters);
+        }
+//        CutCoeffArray newChainCoefficients;
+//        bool newChainAvailable = cutFifo.pull(newChainCoefficients);
+        
+        ParametricCoeffPtr newChainCoefficients;
+        bool newChainAvailable = paramFifo.pull(newChainCoefficients);
+        
+        if ( newChainAvailable )
+        {
             leftChain.setBypassed<filterNum>(bypassed);
             rightChain.setBypassed<filterNum>(bypassed);
-            *(leftChain.get<filterNum>().coefficients) = *newParamCoefficients;
-            *(rightChain.get<filterNum>().coefficients) = *newParamCoefficients;
+            
+            *(leftChain.get<filterNum>().coefficients) = *newChainCoefficients;
+            *(rightChain.get<filterNum>().coefficients) = *newChainCoefficients;
+            
+            // prevent in thread deletion
+            parametricCoeffPool.add(newChainCoefficients);
         }
+        
+        
         oldParametricParams = newFilterParameters;
+        oldFilterType = filterType;
     }
     
  
