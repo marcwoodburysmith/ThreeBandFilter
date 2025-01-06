@@ -4,6 +4,7 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="EubSKn" name="ThreeBandFilter">
     <GROUP id="{81C0DB5C-8C1E-A37D-6CF2-E2CC0451D755}" name="Source">
+      <FILE id="WvHycn" name="FilterLink.h" compile="0" resource="0" file="Source/FilterLink.h"/>
       <FILE id="yEyAiJ" name="ReleasePool.h" compile="0" resource="0" file="Source/ReleasePool.h"/>
       <FILE id="PmwnJL" name="FilterCoefficientGenerator.h" compile="0" resource="0"
             file="Source/FilterCoefficientGenerator.h"/>

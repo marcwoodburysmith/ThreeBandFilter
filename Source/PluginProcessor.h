@@ -17,6 +17,8 @@
 #include "Fifo.h"
 #include "FilterCoefficientGenerator.h"
 #include "ReleasePool.h"
+#include "ParameterHelpers.h"
+#include "FilterLink.h"
 
 
 
@@ -92,6 +94,203 @@ public:
 
 private:
     
+    template <const int filterNum>
+    void updateParametricFilter(double sampleRate)
+    {
+        using namespace FilterInfo;
+        
+    //    auto params = FilterInfo::getParameterNames();
+        
+        FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(filterNum))->load() );
+        
+        float freq = apvts.getRawParameterValue(createFreqParameters(filterNum))->load();
+        float quality = apvts.getRawParameterValue(createQualityParameters(filterNum))->load();
+        bool bypassed = apvts.getRawParameterValue(createBypassedParameters(filterNum))->load() > 0.5f;
+        
+        float gainDb = apvts.getRawParameterValue(createGainParameters(filterNum))->load();
+        auto gain = juce::Decibels::decibelsToGain(gainDb);
+
+        
+    //    float freq = p_freq->get();
+    //    float quality = p_quality->get();
+    //    bool bypassed = p_bypassed->get();
+    //
+    //    auto slope = p_slope->getCurrentChoiceName().getFloatValue(); //need to check this
+        
+        if ( filterType == FilterType::FirstOrderLowPass || filterType == FilterType::FirstOrderHighPass || filterType == FilterType::LowPass || filterType == FilterType::HighPass )
+        {
+            HighCutLowCutParameters newHighCutLowCut;
+            newHighCutLowCut.isLowCut = ( filterType == FilterType::LowPass || filterType == FilterType::FirstOrderLowPass );
+            newHighCutLowCut.order = 1;
+            newHighCutLowCut.freq = freq;
+            newHighCutLowCut.bypassed = bypassed;
+            
+            if ( filterType == FilterType::LowPass || filterType == FilterType::HighPass )
+            {
+                newHighCutLowCut.order = 2;
+            }
+            
+            newHighCutLowCut.sampleRate = sampleRate;
+            newHighCutLowCut.quality = quality;
+            
+            if (newHighCutLowCut != oldCutParams || filterType  != oldFilterType )
+            {
+                //            auto newCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+                //            decltype(newCoefficients) newCutCoefficients;
+                
+                cutCoeffGenerator.changeParameters(newHighCutLowCut);
+                
+                //            cutFifo.push(newCoefficients);
+                //            cutFifo.pull(newCutCoefficients);
+            }
+            CutCoeffArray newChainCoefficients;
+            bool newChainAvailable = cutFifo.pull(newChainCoefficients);
+            
+            if ( newChainAvailable )
+            {
+                leftChain.setBypassed<0>(bypassed);
+                rightChain.setBypassed<0>(bypassed);
+                *(leftChain.get<filterNum>().coefficients) = *(newChainCoefficients[0]);
+                *(rightChain.get<filterNum>().coefficients) = *(newChainCoefficients[0]);
+    //            oldCutParams = newHighCutLowCut;
+                parametricCoeffPool.add(newChainCoefficients[0]);
+            }
+            oldCutParams = newHighCutLowCut;
+            
+        }
+        else
+        {
+            FilterParameters newFilterParameters;
+            
+            FilterType filterType = static_cast<FilterType>(apvts.getRawParameterValue(createFilterTypeParameters(filterNum))->load() );
+            
+            float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(createGainParameters(filterNum))->load() );
+            
+            newFilterParameters.filterType = filterType;
+            newFilterParameters.gain = gain;
+            newFilterParameters.freq = freq;
+            newFilterParameters.quality = quality;
+            newFilterParameters.bypassed = bypassed;
+            
+            if ( newFilterParameters != oldParametricParams || filterType  != oldFilterType  )
+            {
+    //            auto newCoefficients = CoefficientMaker::makeCoefficients(newFilterParameters);
+    //
+    //            paramFifo.push(newCoefficients);
+    //            decltype(newCoefficients) newParamCoefficients;
+    //            paramFifo.pull(newParamCoefficients);
+    //
+    //            leftChain.setBypassed<filterNum>(bypassed);
+    //            rightChain.setBypassed<filterNum>(bypassed);
+    //            *(leftChain.get<filterNum>().coefficients) = *newParamCoefficients;
+    //            *(rightChain.get<filterNum>().coefficients) = *newParamCoefficients;
+                
+                parametricCoeffGenerator.changeParameters(newFilterParameters);
+            }
+    //        CutCoeffArray newChainCoefficients;
+    //        bool newChainAvailable = cutFifo.pull(newChainCoefficients);
+            
+            ParametricCoeffPtr newChainCoefficients;
+            bool newChainAvailable = paramFifo.pull(newChainCoefficients);
+            
+            if ( newChainAvailable )
+            {
+                leftChain.setBypassed<filterNum>(bypassed);
+                rightChain.setBypassed<filterNum>(bypassed);
+                
+                *(leftChain.get<filterNum>().coefficients) = *newChainCoefficients;
+                *(rightChain.get<filterNum>().coefficients) = *newChainCoefficients;
+                
+                // prevent in thread deletion
+                parametricCoeffPool.add(newChainCoefficients);
+            }
+            
+            
+            oldParametricParams = newFilterParameters;
+            oldFilterType = filterType;
+        }
+        
+     
+    }
+    
+    template <const int filterNum>
+    void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut)
+    {
+        using namespace FilterInfo;
+        
+        float freq = apvts.getRawParameterValue(createFreqParameters(filterNum))->load();
+    //    float quality = apvts.getRawParameterValue(createQualityParameters(filterNum))->load();
+        bool bypassed = apvts.getRawParameterValue(createBypassedParameters(filterNum))->load() > 0.5f;
+        
+        Slope slope = static_cast<Slope> (apvts.getRawParameterValue(createSlopeParameters(filterNum))->load());
+        
+        HighCutLowCutParameters newHighCutLowCut;
+        newHighCutLowCut.isLowCut = isLowCut;
+        newHighCutLowCut.order = static_cast<int>(slope) + 1;
+        newHighCutLowCut.freq = freq;
+        newHighCutLowCut.bypassed = bypassed;
+        newHighCutLowCut.quality = 1.f;
+        
+        if (oldParams != newHighCutLowCut)//(newHighCutLowCut != oldParams)
+        {
+            //        auto cutCoefficients = CoefficientMaker::makeCoefficients(newHighCutLowCut);
+            //        decltype(cutCoefficients) newCutCoefficients;
+            
+            if ( isLowCut )
+            {
+                lowCutCoeffGenerator.changeParameters(newHighCutLowCut);
+            }
+            else
+            {
+                highCutCoeffGenerator.changeParameters(newHighCutLowCut);
+            }
+        }
+            
+        CutCoeffArray newChainCoefficients;
+        bool newChainAvailable;
+            
+        if (isLowCut)
+        {
+    //            lowCutFifo.push(cutCoefficients);
+    //            lowCutFifo.pull(newCutCoefficients);
+            newChainAvailable = lowCutFifo.pull(newChainCoefficients);
+        }
+        else
+        {
+    //            highCutFifo.push(cutCoefficients);
+    //            highCutFifo.pull(newCutCoefficients);
+            newChainAvailable = highCutFifo.pull(newChainCoefficients);
+        }
+            
+            
+        if ( newChainAvailable )
+        {
+            leftChain.setBypassed<filterNum>(bypassed);
+            rightChain.setBypassed<filterNum>(bypassed);
+            bypassSubChain<filterNum>();
+            if ( !bypassed )
+            {
+                //
+                switch (slope)
+                {
+                    case Slope::slope48:
+                    case Slope::slope42:
+                        updateSingleCut<filterNum, 3>(newChainCoefficients, isLowCut);
+                    case Slope::slope36:
+                    case Slope::slope30:
+                        updateSingleCut<filterNum, 2>(newChainCoefficients, isLowCut);
+                    case Slope::slope24:
+                    case Slope::slope18:
+                        updateSingleCut<filterNum, 1>(newChainCoefficients, isLowCut);
+                    case Slope::slope12:
+                    case Slope::slope6:
+                        updateSingleCut<filterNum, 0>(newChainCoefficients, isLowCut);
+                }
+            }
+        }
+        oldParams = newHighCutLowCut;
+    }
+    
     MonoChain leftChain;
     MonoChain rightChain;
     
@@ -134,14 +333,17 @@ private:
     ReleasePool<Coefficients, 1000> lowCutCoeffPool {1000, 2000};
     ReleasePool<Coefficients, 100> parametricCoeffPool {100, 2000};
     ReleasePool<Coefficients, 1000> highCutCoeffPool {1000, 2000};
+    
+    FilterLink<Filter, FilterCoeffPtr, FilterParameters, CoefficientMaker> paraFilterLink;
+    
 
     
     
-    template <const int filterNum>
-    void updateParametricFilter(double sampleRate);
-   
-    template <const int filterNum>
-    void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut);
+//    template <const int filterNum>
+//    void updateParametricFilter(double sampleRate);
+//   
+//    template <const int filterNum>
+//    void updateCutFilter(double sampleRate, HighCutLowCutParameters& oldParams, bool isLowCut);
     
     template <const int filterNum, const int subFilterNum, typename CoefficientType>
     void updateSingleCut(CoefficientType& chainCoefficients, bool isLowCut)

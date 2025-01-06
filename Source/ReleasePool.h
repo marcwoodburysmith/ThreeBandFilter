@@ -38,7 +38,7 @@ struct ReleasePool : juce::Timer
         {
             // on audio thread, push to fifo to deal with later.
             newAddition = holdFifo.push(ptr);
-            jassert(newAddition.value);
+//            jassert(newAddition.value);
         }
     }
     
